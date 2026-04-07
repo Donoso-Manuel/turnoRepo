@@ -3,12 +3,22 @@ function esTurnoNoche(turnoReal, turnoCatalogo) {
 
   if (!horaIngreso || !horaSalida) return false;
 
+  // 🔥 detectar código directo (más seguro)
+  const codigo = turnoCatalogo?.codigo;
 
-  if (['LIB', 'SAL'].includes(turnoCatalogo?.codigo)) {
+  // 🟣 CASO ESPECIAL: LIB / SAL
+  if (codigo === 'LIB' || codigo === 'SAL') {
+
+    // cruza medianoche
     if (horaSalida < horaIngreso) return true;
+
+    // empieza tarde
     if (horaIngreso >= '18:00') return true;
+
     return false;
   }
+
+  // 🔵 CASO NORMAL
 
   if (horaSalida < horaIngreso) return true;
 

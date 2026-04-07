@@ -53,7 +53,7 @@ async function procesarExcel(data){
 
             const esNoche = esTurnoNoche(
                 {horaIngreso, horaSalida},
-                turnoCatalogo
+                turnoCatalogo || {codigo: codigoTurno}
             );
 
             resultados.push({

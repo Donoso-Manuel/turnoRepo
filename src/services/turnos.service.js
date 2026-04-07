@@ -1,9 +1,9 @@
 const { procesarExcel, obtenerRangoFechas } = require('./excel.service');
-const { 
-  existenTurnosEnRango, 
-  insertarTurnos, 
-  eliminarTurnoEnRango 
-} = require('./turnos.db.service');
+const {obtenerTurnoPorCodigo} =  require('./catalogo.service')
+const {esTurnoNoche}  = require('./reglas.service')
+const {calcularNochesYBeneficios} = require('./beneficios.service')
+const {  existenTurnosEnRango, insertarTurnos, eliminarTurnoEnRango, insertarTurnoManualDB, obtenerTurnosNocturnosPorRut} = require('./turnos.db.service');
+const {eliminarBeneficiosDesdeFecha, insertarBeneficios} = require('./beneficios.db.service')
 
 async function procesarYGuardarTurnos(data, forzar = false) {
 
@@ -37,6 +37,51 @@ async function procesarYGuardarTurnos(data, forzar = false) {
   };
 }
 
+async function insertarTurnoManual(data) {
+  const turnoCatalogo = await obtenerTurnoPorCodigo(data.codigoTurno);
+
+  const esNoche = esTurnoNoche(
+    {
+      horaIngreso: data.horaIngreso,
+      horaSalida: data.horaSalida
+    },
+    turnoCatalogo
+  );
+
+  const turno = {
+    ...data,
+    esNoche,
+    origen: 'MANUAL'
+  };
+
+  await insertarTurnoManualDB(turno);
+
+  const reproceso = await reprocesarDesde(data.rut, data.fecha)
+
+  return{
+    turno,
+    reproceso
+  }
+}
+async function reprocesarDesde(rut, fechaInicio) {
+
+  await eliminarBeneficiosDesde(rut, fechaInicio);
+
+  const turnos = await obtenerTurnosNocturnosPorRut(rut);
+
+  const turnosFiltrados = turnos.filter(t => 
+    new Date(t.fecha) >= new Date(fechaInicio)
+  );
+
+  const resultado = calcularNochesYBeneficios(turnosFiltrados);
+
+  await insertarBeneficios(rut, resultado.beneficios);
+
+  return resultado;
+}
+
 module.exports = {
-  procesarYGuardarTurnos
+  procesarYGuardarTurnos,
+  insertarTurnoManual,
+  reprocesarDesde
 };

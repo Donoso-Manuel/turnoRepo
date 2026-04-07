@@ -40,9 +40,121 @@ async function eliminarBeneficiosPorRut(rut) {
     [rut]
   );
 }
+async function actualizarEstadoBeneficio(id, estado) {
+  const result = await pool.query(
+    `UPDATE beneficios
+     SET estado = $1
+     WHERE id = $2
+     RETURNING *`,
+    [estado, id]
+  );
+
+  return result.rows[0];
+}
+async function obtenerBeneficioPorId(id) {
+  const result = await pool.query(
+    `SELECT * FROM beneficios WHERE id = $1`,
+    [id]
+  );
+
+  return result.rows[0];
+}
+async function eliminarBeneficiosDesdeFecha(rut, fecha) {
+  await pool.query(
+    `DELETE FROM beneficios
+     WHERE rut = $1 AND fecha_generacion >= $2`,
+    [rut, fecha]
+  );
+}
+async function pagarBeneficiosMasivo(ids) {
+  const result = await pool.query(
+    `UPDATE beneficios
+     SET estado = 'PAGADO',
+         fecha_pago = NOW()
+     WHERE id = ANY($1::int[])
+     AND estado = 'PENDIENTE'
+     RETURNING *`,
+    [ids]
+  );
+
+  return result.rows;
+}
+async function obtenerPagosPorRango(desde, hasta) {
+  const result = await pool.query(
+    `SELECT 
+        b.rut,
+        t.nombre,
+        b.fecha_generacion,
+        b.fecha_pago
+     FROM beneficios b
+     JOIN turnos t ON t.rut = b.rut
+     WHERE b.estado = 'PAGADO'
+     AND b.fecha_pago BETWEEN $1 AND $2
+     ORDER BY b.rut, b.fecha_pago`,
+    [desde, hasta]
+  );
+
+  return result.rows;
+}
+async function obtenerBeneficiosPorIds(ids) {
+  const result = await pool.query(
+    `SELECT 
+        b.id,
+        b.rut,
+        t.nombre,
+        b.fecha_generacion
+     FROM beneficios b
+     JOIN turnos t ON t.rut = b.rut
+     WHERE b.id = ANY($1::int[])
+     ORDER BY b.fecha_generacion ASC`,
+    [ids]
+  );
+
+  return result.rows;
+}
+async function pagarYObtenerBeneficios(ids, lote) {
+  const result = await pool.query(
+    `UPDATE beneficios
+     SET estado = 'PAGADO',
+         fecha_pago = NOW(),
+         lote_pago = $2
+     WHERE id = ANY($1::int[])
+     AND estado = 'PENDIENTE'
+     RETURNING id, rut, fecha_generacion`,
+    [ids, lote]
+  );
+
+  return result.rows;
+}
+async function obtenerPorLote(lote) {
+  const result = await pool.query(
+    `SELECT * FROM beneficios WHERE lote_pago = $1`,
+    [lote]
+  );
+
+  return result.rows;
+}
+async function eliminarBeneficiosDesde(rut, fecha) {
+  await pool.query(
+    `DELETE FROM beneficios
+     WHERE rut = $1
+     AND fecha_generacion >= $2
+     AND estado = 'PENDIENTE'`,
+    [rut, fecha]
+  );
+}
 
 module.exports = {
     insertarBeneficios,
     obtenerBeneficiosPorRut,
-    eliminarBeneficiosPorRut
+    eliminarBeneficiosPorRut,
+    actualizarEstadoBeneficio,
+    obtenerBeneficioPorId,
+    eliminarBeneficiosDesdeFecha,
+    pagarBeneficiosMasivo,
+    obtenerPagosPorRango,
+    obtenerBeneficiosPorIds,
+    pagarYObtenerBeneficios,
+    obtenerPorLote,
+    eliminarBeneficiosDesde
 }

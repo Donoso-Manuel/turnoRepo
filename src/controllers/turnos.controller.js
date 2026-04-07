@@ -1,5 +1,8 @@
 const XLSX = require('xlsx');
-const { procesarYGuardarTurnos } = require('../services/turnos.service');
+const { procesarYGuardarTurnos, insertarTurnoManual } = require('../services/turnos.service');
+const {obtenerTurnoPorId, actualizarTurno} = require('../services/turnos.db.service');
+const {obtenerTurnoPorCodigo} = require('../services/catalogo.service')
+const {esTurnoNoche} = require('../services/reglas.service')
 
 const cargarExcel = async (req, res) => {
   try {
@@ -36,6 +39,86 @@ const cargarExcel = async (req, res) => {
   }
 };
 
+const corregirTurno = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { horaIngreso, horaSalida } = req.body;
+
+    const turno = await obtenerTurnoPorId(id);
+
+    if (!turno) {
+      return res.status(404).json({ error: "Turno no encontrado" });
+    }
+
+    const turnoCatalogo = await obtenerTurnoPorCodigo(turno.codigo_turno);
+
+    const esNoche = esTurnoNoche(
+      { horaIngreso, horaSalida },
+      turnoCatalogo
+    );
+
+    const actualizado = await actualizarTurno(id, {
+      horaIngreso,
+      horaSalida,
+      esNoche
+    });
+
+    const reproceso = await reprocesarDesde(
+      actualizado.rut,
+      actualizado.fecha
+    );
+
+    res.json({
+      mensaje: "Turno actualizado y reprocesado",
+      turno: actualizado,
+      reproceso
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Error al corregir el turno" });
+  }
+};
+
+const agregarTurnoManual = async (req, res) => {
+  try {
+    const {
+      rut,
+      nombre,
+      fecha,
+      horaIngreso,
+      horaSalida,
+      codigoTurno
+    } = req.body;
+
+    if (!rut || !fecha || !horaIngreso || !horaSalida) {
+      return res.status(400).json({
+        error: 'Faltan datos obligatorios'
+      });
+    }
+
+    const resultado = await insertarTurnoManual({
+      rut,
+      nombre,
+      fecha,
+      horaIngreso,
+      horaSalida,
+      codigoTurno
+    });
+
+    res.json({
+      mensaje: 'Turno manual agregado',
+      turno: resultado
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al insertar turno manual' });
+  }
+};
+
 module.exports = {
   cargarExcel,
+  corregirTurno,
+  agregarTurnoManual
 };

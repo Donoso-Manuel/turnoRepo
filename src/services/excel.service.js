@@ -68,13 +68,13 @@ async function procesarExcel(data){
     }
     return resultados;
 }
-function obtenerRangoFechas(turnos){
-    const fechas = turnos.map(t=> new Date(t.fecha));
+function obtenerRangoFechas(turnos) {
+  const fechas = turnos.map(t => t.fecha); // ya viene YYYY-MM-DD
 
-    return{
-        min: new Date (Math.min(...fechas)),
-        max: new Date (Math.max(...fechas))
-    };
+  const min = fechas.sort()[0];
+  const max = fechas.sort().reverse()[0];
+
+  return { min, max };
 }
 
 module.exports = {

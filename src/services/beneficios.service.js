@@ -1,16 +1,84 @@
 const pool = require('../db');
 
 const {eliminarBeneficiosDesdeFecha, insertarBeneficios} =  require('./beneficios.db.service')
-const {obtenerTurnosDesdeFecha, obtenerAcumuladoAntesDeFecha} = require('./turnos.db.service')
+const {obtenerTurnosDesdeFecha, obtenerAcumuladoAntesDeFecha, obtenerTurnosNocturnosPorRango} = require('./turnos.db.service')
+const {obtenerAcumulado, guardarAcumulado} =  require('./acumulados.db.service')
 
-function calcularNochesYBeneficios(turnos){
-    let contador = 0;
+
+async function procesarBeneficiosPorRango(fechaInicio, fechaFin) {
+
+  const turnos = await obtenerTurnosNocturnosPorRango(fechaInicio, fechaFin);
+
+  // 🧠 agrupar por rut
+  const agrupados = {};
+
+  for (const t of turnos) {
+    if (!agrupados[t.rut]) {
+      agrupados[t.rut] = [];
+    }
+    agrupados[t.rut].push(t);
+  }
+
+  let totalBeneficios = 0;
+
+  // 🔁 recorrer cada rut
+  for (const rut in agrupados) {
+
+    const turnosRut = agrupados[rut].sort(
+      (a, b) => new Date(a.fecha) - new Date(b.fecha)
+    );
+
+    // 🔍 obtener acumulado
+    const acumulado = await obtenerAcumulado(rut);
+
+    const nochesPrevias = acumulado?.noches_acumuladas || 0;
+    const ultimaFecha = acumulado?.ultima_fecha;
+
+    // 🔥 filtrar solo nuevos turnos
+    const turnosFiltrados = turnosRut.filter(t => {
+      if (!ultimaFecha) return true;
+      return t.fecha > ultimaFecha;
+    });
+
+    if (turnosFiltrados.length === 0) continue;
+
+    // 🧠 calcular beneficios
+    const resultado = calcularNochesYBeneficios(
+      turnosFiltrados,
+      nochesPrevias
+    );
+
+    // 💾 guardar beneficios
+    await insertarBeneficios(rut, resultado.beneficios);
+
+    // 📅 nueva ultima fecha
+    const ultimaFechaNueva =
+      turnosFiltrados[turnosFiltrados.length - 1].fecha;
+
+    // 💾 actualizar acumulado
+    await guardarAcumulado(
+      rut,
+      resultado.nochesRestantes,
+      ultimaFechaNueva
+    );
+
+    totalBeneficios += resultado.beneficios.length;
+  }
+
+  return {
+    ok: true,
+    totalBeneficios
+  };
+}
+
+function calcularNochesYBeneficios(turnos, acumuladoInicial = 0){
+    let contador = acumuladoInicial;
     let beneficios = [];
 
     for(const t of turnos){
         contador++;
 
-        if(contador === 4){
+        if(contador === 12){
             beneficios.push({
                 fecha_generacion: t.fecha
             });
@@ -19,8 +87,6 @@ function calcularNochesYBeneficios(turnos){
         }
     }
     return{
-        totalNoches: turnos.length,
-        beneficiosGenerados: beneficios.length,
         nochesRestantes: contador,
         beneficios
     };
@@ -58,5 +124,6 @@ async function reprocesarDesdeFecha(rut, fecha) {
 }
 module.exports ={
     calcularNochesYBeneficios,
-    reprocesarDesdeFecha
+    reprocesarDesdeFecha,
+    procesarBeneficiosPorRango
 }

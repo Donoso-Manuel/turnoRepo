@@ -11,10 +11,13 @@ async function procesarYGuardarTurnos(data, forzar = false) {
 
   const { min, max } = obtenerRangoFechas(turnos);
 
+
   const existen = await existenTurnosEnRango(min, max);
 
 
+
   if (existen && !forzar) {
+
     return {
       requiereConfirmacion: true,
       mensaje: 'Ya existen turnos en este rango',

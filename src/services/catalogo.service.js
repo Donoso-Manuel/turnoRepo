@@ -1,6 +1,7 @@
 const pool = require('../db');
 
 async function obtenerTurnoPorCodigo(codigo) {
+    console.log(codigo)
     const result = await pool.query(
         `SELECT codigo, hora_inicio, hora_fin, duracion_horas, es_nocturno_base
         FROM turnos_catalogo

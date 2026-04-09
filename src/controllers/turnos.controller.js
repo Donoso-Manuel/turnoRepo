@@ -3,6 +3,7 @@ const { procesarYGuardarTurnos, insertarTurnoManual } = require('../services/tur
 const {obtenerTurnoPorId, actualizarTurno} = require('../services/turnos.db.service');
 const {obtenerTurnoPorCodigo} = require('../services/catalogo.service')
 const {esTurnoNoche} = require('../services/reglas.service')
+const {procesarBeneficiosPorRango} = require('../services/beneficios.service')
 
 const cargarExcel = async (req, res) => {
   try {
@@ -18,14 +19,22 @@ const cargarExcel = async (req, res) => {
 
     const resultado = await procesarYGuardarTurnos(data, forzar);
 
-    //console.log(resultado)
 
-    //console.log('Muestra turnos:', resultado.turnos.slice(0, 1));
-    //console.log('Rango:', resultado.rango);
-    //console.log('Existen en BD:', resultado.existen);
+    if(resultado.requiereConfirmacion){
+      return res.json({
+        requiereConfirmacion: true,
+        mensaje: resultado.mensaje,
+        rango: resultado.rango
+      })
+    }
 
+    if(resultado.ok){
+      await procesarBeneficiosPorRango(
+        resultado.rango.min,
+        resultado.rango.max
+      )
+    }
 
-    
     res.json({
       totalTurnos: resultado.turnos.length,
       rango: resultado.rango,

@@ -2,6 +2,8 @@ const pool = require('../db');
 
 
 async function existenTurnosEnRango(fechaInicio, fechaFin) {
+  
+  console.log(fechaFin, fechaFin)
   const result = await pool.query(
     `SELECT COUNT(*) 
      FROM turnos 
@@ -140,6 +142,19 @@ async function insertarTurnoManualDB(t) {
     ]
   );
 }
+
+async function obtenerTurnosNocturnosPorRango(fechaInicio, fechaFin) {
+  const result =  await pool.query(
+    `SELECT rut, fecha
+    FROM turnos
+    WHERE es_noche = true
+    AND fecha BETWEEN $1 AND $2
+    ORDER BY rut, fecha ASC`,
+    [fechaInicio, fechaFin]
+  );
+  return result.rows;
+}
+
 module.exports = {
   existenTurnosEnRango,
   insertarTurnos,
@@ -149,5 +164,6 @@ module.exports = {
   actualizarTurno,
   obtenerTurnosDesdeFecha,
   obtenerAcumuladoAntesDeFecha,
-  insertarTurnoManualDB
+  insertarTurnoManualDB,
+  obtenerTurnosNocturnosPorRango
 };

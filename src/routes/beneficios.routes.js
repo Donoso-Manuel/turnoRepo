@@ -5,16 +5,31 @@ const {probarBeneficios, listarBeneficios, usarBeneficio, pagarBeneficio,
     reprocesarDesde, exportarPagosHistorico, exportarSeleccionados,
     pagarMasivo, exportarYPagar, obtenerLote, exportarPorLote} = require('../controllers/beneficios.controller');
 
-router.get('/beneficios/:rut',probarBeneficios);
-router.put('/beneficios/:id/pagar', pagarBeneficio)
-router.put('/beneficios/:id/usar', usarBeneficio)
-router.get('/beneficios/:rut/listar',listarBeneficios)
-router.post('/beneficios/:rut/reprocesar-desde', reprocesarDesde)
-router.get('/beneficios/reporte-pagos', exportarPagosHistorico);
-router.post('/Beneficios/pagar-masivo', pagarMasivo)
-router.get('/beneficios/exportar-seleccionados', exportarSeleccionados)
-router.post('/beneficios/exportar-pagar', exportarYPagar)
-router.get('/beneficios/lote/:lote', obtenerLote)
-router.get('/beneficios/lote/:lote/exportar', exportarPorLote);
+
+// Pruebas y Calculos
+router.get('/calcular/:rut', probarBeneficios)
+
+//listar Beneficio por Rut
+router.get('/:rut/listar',listarBeneficios)
+
+//reprocesos por rut
+router.post('/:rut/reprocesar-desde', reprocesarDesde)
+
+// Pago individual
+router.put('/:id/pagar', pagarBeneficio)
+router.put('/:id/usar', usarBeneficio)
+
+//Pago masivo
+router.post('/pagar-masivo', pagarMasivo)
+router.post('/exportar-pagar', exportarYPagar)
+
+//reportes
+router.get('/reporte-pagos', exportarPagosHistorico);
+router.get('/exportar-seleccionados', exportarSeleccionados)
+
+//lotes
+router.get('/lote/:lote', obtenerLote)
+router.get('/lote/:lote/exportar', exportarPorLote);
+
 
 module.exports = router;

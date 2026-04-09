@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/turnos', turnosRoutes)
-app.use('/api',beneficiosRoutes)
+app.use('/api/beneficios',beneficiosRoutes)
 
 app.get('/',(req, res)=>{
     res.send('API Funcionando 🚀');

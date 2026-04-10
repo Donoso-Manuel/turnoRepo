@@ -1,17 +1,7 @@
-function calcularHoras(horaInicio, horaFin) {
-  const [h1, m1] = horaInicio.split(':').map(Number);
-  const [h2, m2] = horaFin.split(':').map(Number);
-
-  let inicio = h1 * 60 + m1;
-  let fin = h2 * 60 + m2;
-
-  if (fin < inicio) {
-    fin += 24 * 60;
-  }
-
-  return (fin - inicio) / 60;
+function horaAMinutos(hora) {
+  const [h, m] = hora.split(':').map(Number);
+  return h * 60 + m;
 }
-
 function calcularSalidaEsperada(horaIngreso, duracionBase) {
   const [h, m] = horaIngreso.split(':').map(Number);
 
@@ -32,33 +22,47 @@ function esTurnoNoche(turnoReal, turnoCatalogo) {
 
   const codigo = turnoCatalogo?.codigo;
 
-  const cruzaMedianoche = horaSalida < horaIngreso;
-  const salidaTardia = horaSalida >= '01:30';
+  const ingresoMin = horaAMinutos(horaIngreso);
+  const salidaMinReal = horaAMinutos(horaSalida);
 
-  // 🟣 LIB / SAL
+  // 🟣 LIB / SAL (siempre con hora REAL)
   if (codigo === 'LIB' || codigo === 'SAL') {
-    return cruzaMedianoche && salidaTardia;
+    const cruza = salidaMinReal < ingresoMin;
+    const salidaReal = cruza ? salidaMinReal + 1440 : salidaMinReal;
+
+    return cruza && salidaReal >= (24 * 60 + 90); // 01:30
   }
 
   const duracionBase = turnoCatalogo?.duracion_horas || 0;
-
   const salidaEsperada = calcularSalidaEsperada(horaIngreso, duracionBase);
 
-  // 🔴 IMPORTANTE:
-  // evaluar SOLO hasta la salida esperada (ignorar horas extra)
-  const salidaEvaluada = salidaEsperada;
+  const salidaMinEsperada = horaAMinutos(salidaEsperada);
 
-  const cruzaMedianocheEvaluado = salidaEvaluada < horaIngreso;
-  const salidaTardiaEvaluada = salidaEvaluada >= '01:30';
+  // 🔴 evaluar cruce para ambos escenarios
+  const cruzaReal = salidaMinReal < ingresoMin;
+  const salidaRealAjustada = cruzaReal
+    ? salidaMinReal + 1440
+    : salidaMinReal;
 
-  // 🌙 CASO 1: turno base nocturno
+  const cruzaEsperada = salidaMinEsperada < ingresoMin;
+  const salidaEsperadaAjustada = cruzaEsperada
+    ? salidaMinEsperada + 1440
+    : salidaMinEsperada;
+
+  const HORA_MIN_NOCTURNA = 24 * 60 + 90; // 01:30
+
+  // 🌙 CASO 1: turno base nocturno → VALIDAR CON REAL
   if (turnoCatalogo?.es_nocturno_base) {
-    return cruzaMedianocheEvaluado && salidaTardiaEvaluada;
+
+    if (!cruzaReal) return false;
+
+    if (salidaRealAjustada < HORA_MIN_NOCTURNA) return false;
+
+    return true;
   }
 
-  // 🔵 CASO 2: turno base diurno
-  // SOLO si su jornada efectiva (sin extra) es nocturna
-  if (cruzaMedianocheEvaluado && salidaTardiaEvaluada) {
+  // 🔵 CASO 2: turno base diurno → VALIDAR CON ESPERADO (evitar horas extra)
+  if (cruzaEsperada && salidaEsperadaAjustada >= HORA_MIN_NOCTURNA) {
     return true;
   }
 

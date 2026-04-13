@@ -10,16 +10,33 @@ function parseFecha(fecha){
     return dayjs(fecha,'DD/MM/YYYY').format('YYYY-MM-DD');
 }
 function limpiarHora(hora){
-  if (!hora) return null;
 
+  if (hora === null || hora === undefined || hora === '') return null;
+
+  // 🔤 string
   if (typeof hora === 'string') {
-    return hora.replace(/[^0-9:]/g, '');
+
+    const limpio = hora.replace(/[^0-9:]/g, '');
+
+    if (limpio === '0') return '00:00';
+
+    // 🔴 caso "0:00"
+    if (/^\d{1}:\d{2}$/.test(limpio)) {
+      const [h, m] = limpio.split(':');
+      return `${h.padStart(2, '0')}:${m}`;
+    }
+
+    return limpio;
   }
 
+
   if (typeof hora === 'number') {
+
     const totalMinutos = Math.round(hora * 24 * 60);
+
     const horas = String(Math.floor(totalMinutos / 60)).padStart(2, '0');
     const minutos = String(totalMinutos % 60).padStart(2, '0');
+
     return `${horas}:${minutos}`;
   }
 
@@ -76,6 +93,7 @@ function obtenerRangoFechas(turnos) {
 
   return { min, max };
 }
+
 
 module.exports = {
     procesarExcel,

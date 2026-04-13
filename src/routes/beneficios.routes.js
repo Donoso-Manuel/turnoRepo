@@ -3,14 +3,14 @@ const router = express.Router();
 
 const {probarBeneficios, listarBeneficios, usarBeneficio, pagarBeneficio, 
     reprocesarDesde, exportarPagosHistorico, exportarSeleccionados,
-    pagarMasivo, exportarYPagar, obtenerLote, exportarPorLote} = require('../controllers/beneficios.controller');
+     exportarYPagar, obtenerLote, exportarPorLote} = require('../controllers/beneficios.controller');
 
 
 // Pruebas y Calculos
 router.get('/calcular/:rut', probarBeneficios)
 
 //listar Beneficio por Rut
-router.get('/:rut/listar',listarBeneficios)
+router.get('/beneficios',listarBeneficios)
 
 //reprocesos por rut
 router.post('/:rut/reprocesar-desde', reprocesarDesde)
@@ -20,7 +20,6 @@ router.put('/:id/pagar', pagarBeneficio)
 router.put('/:id/usar', usarBeneficio)
 
 //Pago masivo
-router.post('/pagar-masivo', pagarMasivo)
 router.post('/exportar-pagar', exportarYPagar)
 
 //reportes

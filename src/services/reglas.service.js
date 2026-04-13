@@ -1,6 +1,19 @@
 function horaAMinutos(hora) {
-  const [h, m] = hora.split(':').map(Number);
-  return h * 60 + m;
+  if (hora === null || hora === undefined) return 0;
+
+  // 🔴 caso número (Excel: 0, 0.5)
+  if (typeof hora === 'number') {
+    return Math.round(hora * 24 * 60);
+  }
+
+  if (hora === '0') return 0;
+
+  if (typeof hora === 'string' && hora.includes(':')) {
+    const [h, m] = hora.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  return 0;
 }
 function calcularSalidaEsperada(horaIngreso, duracionBase) {
   const [h, m] = horaIngreso.split(':').map(Number);

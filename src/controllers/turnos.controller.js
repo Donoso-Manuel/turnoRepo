@@ -3,7 +3,7 @@ const { procesarYGuardarTurnos, insertarTurnoManual } = require('../services/tur
 const {obtenerTurnoPorId, actualizarTurno} = require('../services/turnos.db.service');
 const {obtenerTurnoPorCodigo} = require('../services/catalogo.service')
 const {esTurnoNoche} = require('../services/reglas.service')
-const {procesarBeneficiosPorRango} = require('../services/beneficios.service')
+const {procesarBeneficiosPorRango, reprocesarRangoCompleto} = require('../services/beneficios.service')
 
 const cargarExcel = async (req, res) => {
   try {
@@ -29,10 +29,17 @@ const cargarExcel = async (req, res) => {
     }
 
     if(resultado.ok){
-      await procesarBeneficiosPorRango(
-        resultado.rango.min,
-        resultado.rango.max
-      )
+      if(forzar){
+        await reprocesarRangoCompleto(
+          resultado.rango.min,
+          resultado.rango.max
+        );
+      }else{
+        await procesarBeneficiosPorRango(
+          resultado.rango.min,
+          resultado.rango.max
+        );
+      }
     }
 
     res.json({

@@ -1,9 +1,9 @@
 const XLSX = require('xlsx');
 const { obtenerTurnosNocturnosPorRut } = require('../services/turnos.db.service');
-const { calcularNochesYBeneficios, reprocesarDesdeFecha } = require('../services/beneficios.service');
-const { insertarBeneficios, obtenerBeneficiosPorRut, eliminarBeneficiosPorRut, actualizarEstadoBeneficio, obtenerBeneficioPorId, obtenerPagosPorRango, pagarBeneficiosMasivo } = require('../services/beneficios.db.service');
+const { reprocesarDesdeFecha } = require('../services/beneficios.service');
+const { insertarBeneficios, eliminarBeneficiosPorRut, actualizarEstadoBeneficio, obtenerBeneficioPorId, obtenerPagosPorRango, pagarBeneficiosMasivo } = require('../services/beneficios.db.service');
 const {obtenerAcumulado, guardarAcumulado, resetearAcumulado} = require('../services/acumulados.db.service')
-const {obtenerBeneficiosPorIds, pagarYObtenerBeneficios, obtenerPorLote} = require('../services/beneficios.db.service')
+const {obtenerBeneficiosPorIds, pagarYObtenerBeneficios, obtenerPorLote, obtenerBeneficios} = require('../services/beneficios.db.service')
 
 const probarBeneficios = async (req, res) => {
   try {
@@ -55,22 +55,29 @@ const probarBeneficios = async (req, res) => {
     res.status(500).json({ error: 'Error al calcular beneficios' });
   }
 };
-const listarBeneficios = async(req, res) =>{
-  try{
-    const {rut} =req.params;
+const listarBeneficios = async (req, res) => {
+  try {
+    const { rut, estado, desde, hasta, page, limit } = req.query;
 
-    const beneficios = await obtenerBeneficiosPorRut(rut)
+    const resultado = await obtenerBeneficios({
+      rut,
+      estado,
+      desde,
+      hasta,
+      page: Number(page) || 1,
+      limit: Number(limit) || 10
+    });
 
     res.json({
-      rut,
-      total: beneficios.length,
-      beneficios
+      beneficios: resultado.data,
+      total: resultado.total
     });
-  }catch(error){
+
+  } catch (error) {
     console.error(error);
-    res.status(500).json({error: "Error al Obtener los Beneficios"})
+    res.status(500).json({ error: 'Error al obtener beneficios' });
   }
-}
+};
 const pagarBeneficio =  async(req, res)=>{
   try{
     const {id} = req.params;
@@ -185,29 +192,6 @@ const exportarPagosHistorico = async (req, res) => {
     res.status(500).json({ error: 'Error al generar reporte' });
   }
 };
-const pagarMasivo = async (req, res) => {
-  try {
-    const { ids } = req.body;
-
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({
-        error: 'Debe enviar un array de IDs'
-      });
-    }
-
-    const beneficiosPagados = await pagarBeneficiosMasivo(ids);
-
-    res.json({
-      mensaje: 'Pago masivo realizado',
-      totalPagados: beneficiosPagados.length,
-      beneficios: beneficiosPagados
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error en pago masivo' });
-  }
-};
 const exportarSeleccionados = async (req, res) => {
   try {
     const { ids } = req.body;
@@ -259,6 +243,8 @@ const exportarSeleccionados = async (req, res) => {
 const exportarYPagar = async (req, res) => {
   try {
     const { ids } = req.body;
+
+    console.log (ids)
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
@@ -371,7 +357,6 @@ module.exports = {
     pagarBeneficio,
     reprocesarDesde,
     exportarPagosHistorico,
-    pagarMasivo,
     exportarSeleccionados,
     exportarYPagar,
     obtenerLote,

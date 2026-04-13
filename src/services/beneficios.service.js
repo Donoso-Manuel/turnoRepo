@@ -1,6 +1,6 @@
 const pool = require('../db');
 
-const {eliminarBeneficiosDesdeFecha, insertarBeneficios} =  require('./beneficios.db.service')
+const {eliminarBeneficiosDesde, insertarBeneficios} =  require('./beneficios.db.service')
 const {obtenerTurnosDesdeFecha, obtenerAcumuladoAntesDeFecha, obtenerTurnosNocturnosPorRango} = require('./turnos.db.service')
 const {obtenerAcumulado, guardarAcumulado} =  require('./acumulados.db.service')
 
@@ -93,10 +93,13 @@ function calcularNochesYBeneficios(turnos, acumuladoInicial = 0){
 }
 async function reprocesarDesdeFecha(rut, fecha) {
 
+  // 🔁 1. obtener acumulado previo a la fecha
   let contador = await obtenerAcumuladoAntesDeFecha(rut, fecha);
 
-  await eliminarBeneficiosDesdeFecha(rut, fecha);
+  // 🧹 2. eliminar beneficios desde esa fecha
+  await eliminarBeneficiosDesde(rut, fecha);
 
+  // 📥 3. obtener turnos desde la fecha
   const turnos = await obtenerTurnosDesdeFecha(rut, fecha);
 
   let beneficios = [];
@@ -106,6 +109,7 @@ async function reprocesarDesdeFecha(rut, fecha) {
 
     if (contador === 12) {
       beneficios.push({
+        rut,
         fecha_generacion: t.fecha
       });
 
@@ -113,17 +117,42 @@ async function reprocesarDesdeFecha(rut, fecha) {
     }
   }
 
-  await insertarBeneficios(rut, beneficios);
+  // 💾 4. guardar beneficios
+  if (beneficios.length > 0) {
+    await insertarBeneficios(rut, beneficios);
+  }
+
+  // 📅 5. actualizar acumulado
+  const ultimaFecha = turnos.length > 0
+    ? turnos[turnos.length - 1].fecha
+    : fecha;
+
+  await guardarAcumulado(rut, contador, ultimaFecha);
 
   return {
-    reprocesado: true,
-    desde: fecha,
-    beneficiosGenerados: beneficios.length,
+    rut,
+    totalBeneficios: beneficios.length,
     nochesRestantes: contador
   };
+}
+async function reprocesarRangoCompleto(fechaInicio, fechaFin) {
+
+  const turnos = await obtenerTurnosNocturnosPorRango(fechaInicio, fechaFin);
+
+  const ruts = [...new Set(turnos.map(t => t.rut))];
+
+  let total = 0;
+
+  for (const rut of ruts) {
+    const res = await reprocesarDesdeFecha(rut, fechaInicio);
+    total += res.totalBeneficios;
+  }
+
+  return { totalBeneficios: total };
 }
 module.exports ={
     calcularNochesYBeneficios,
     reprocesarDesdeFecha,
-    procesarBeneficiosPorRango
+    procesarBeneficiosPorRango,
+    reprocesarRangoCompleto
 }

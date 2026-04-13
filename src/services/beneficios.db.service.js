@@ -23,17 +23,6 @@ async function insertarBeneficios(rut, beneficios) {
     client.release();
   }
 }
-async function obtenerBeneficiosPorRut(rut) {
-  const result = await pool.query(
-    `SELECT id, fecha_generacion, estado
-     FROM beneficios
-     WHERE rut = $1
-     ORDER BY fecha_generacion ASC`,
-    [rut]
-  );
-
-  return result.rows;
-}
 async function eliminarBeneficiosPorRut(rut) {
   await pool.query(
     'DELETE FROM beneficios WHERE rut = $1',
@@ -59,43 +48,6 @@ async function obtenerBeneficioPorId(id) {
 
   return result.rows[0];
 }
-async function eliminarBeneficiosDesdeFecha(rut, fecha) {
-  await pool.query(
-    `DELETE FROM beneficios
-     WHERE rut = $1 AND fecha_generacion >= $2`,
-    [rut, fecha]
-  );
-}
-async function pagarBeneficiosMasivo(ids) {
-  const result = await pool.query(
-    `UPDATE beneficios
-     SET estado = 'PAGADO',
-         fecha_pago = NOW()
-     WHERE id = ANY($1::int[])
-     AND estado = 'PENDIENTE'
-     RETURNING *`,
-    [ids]
-  );
-
-  return result.rows;
-}
-async function obtenerPagosPorRango(desde, hasta) {
-  const result = await pool.query(
-    `SELECT 
-        b.rut,
-        t.nombre,
-        b.fecha_generacion,
-        b.fecha_pago
-     FROM beneficios b
-     JOIN turnos t ON t.rut = b.rut
-     WHERE b.estado = 'PAGADO'
-     AND b.fecha_pago BETWEEN $1 AND $2
-     ORDER BY b.rut, b.fecha_pago`,
-    [desde, hasta]
-  );
-
-  return result.rows;
-}
 async function obtenerBeneficiosPorIds(ids) {
   const result = await pool.query(
     `SELECT 
@@ -114,13 +66,15 @@ async function obtenerBeneficiosPorIds(ids) {
 }
 async function pagarYObtenerBeneficios(ids, lote) {
   const result = await pool.query(
-    `UPDATE beneficios
+    `UPDATE beneficios b
      SET estado = 'PAGADO',
          fecha_pago = NOW(),
          lote_pago = $2
-     WHERE id = ANY($1::int[])
-     AND estado = 'PENDIENTE'
-     RETURNING id, rut, fecha_generacion`,
+     FROM turnos t
+     WHERE b.id = ANY($1::int[])
+     AND b.estado = 'PENDIENTE'
+     AND t.rut = b.rut
+     RETURNING b.id, b.rut, t.nombre, b.fecha_generacion`,
     [ids, lote]
   );
 
@@ -143,18 +97,68 @@ async function eliminarBeneficiosDesde(rut, fecha) {
     [rut, fecha]
   );
 }
+async function obtenerBeneficios({ rut, estado, desde, hasta, limit = 10, page = 1 }) {
+
+  const offset = (page - 1) * limit;
+
+  let query = `
+    SELECT DISTINCT ON (b.id)
+      b.id,
+      b.rut,
+      t.nombre,
+      b.fecha_generacion,
+      b.estado,
+      b.fecha_pago,
+      b.lote_pago
+    FROM beneficios b
+    LEFT JOIN turnos t ON t.rut = b.rut
+    WHERE 1=1
+  `;
+
+  const values = [];
+  let i = 1;
+
+  if (rut) {
+    query += ` AND b.rut = $${i++}`;
+    values.push(rut);
+  }
+
+  if (estado) {
+    query += ` AND LOWER(b.estado) = LOWER($${i++})`;
+    values.push(estado);
+  }
+
+  if (desde && hasta) {
+    query += ` AND b.fecha_generacion BETWEEN $${i++} AND $${i++}`;
+    values.push(desde, hasta);
+  }
+
+  query += ` ORDER BY b.id DESC`;
+  query += ` LIMIT $${i++} OFFSET $${i++}`;
+
+  values.push(limit, offset);
+
+  const result = await pool.query(query, values);
+
+  // 🔥 total registros (para frontend)
+  const totalResult = await pool.query(
+    `SELECT COUNT(*) FROM beneficios`
+  );
+
+  return {
+    data: result.rows,
+    total: parseInt(totalResult.rows[0].count)
+  };
+}
 
 module.exports = {
     insertarBeneficios,
-    obtenerBeneficiosPorRut,
     eliminarBeneficiosPorRut,
     actualizarEstadoBeneficio,
     obtenerBeneficioPorId,
-    eliminarBeneficiosDesdeFecha,
-    pagarBeneficiosMasivo,
-    obtenerPagosPorRango,
     obtenerBeneficiosPorIds,
     pagarYObtenerBeneficios,
     obtenerPorLote,
-    eliminarBeneficiosDesde
+    eliminarBeneficiosDesde,
+    obtenerBeneficios
 }

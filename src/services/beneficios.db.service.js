@@ -65,20 +65,48 @@ async function obtenerBeneficiosPorIds(ids) {
   return result.rows;
 }
 async function pagarYObtenerBeneficios(ids, lote) {
-  const result = await pool.query(
-    `UPDATE beneficios b
-     SET estado = 'PAGADO',
-         fecha_pago = NOW(),
-         lote_pago = $2
-     FROM turnos t
-     WHERE b.id = ANY($1::int[])
-     AND b.estado = 'PENDIENTE'
-     AND t.rut = b.rut
-     RETURNING b.id, b.rut, t.nombre, b.fecha_generacion`,
-    [ids, lote]
-  );
+  const client = await pool.connect();
 
-  return result.rows;
+  try {
+    await client.query('BEGIN');
+
+    // 🔥 UPDATE corregido
+    const updateResult = await client.query(
+      `UPDATE beneficios
+       SET estado = 'PAGADO',
+           fecha_pago = NOW(),
+           lote_pago = $2
+       WHERE id = ANY($1::int[])
+       AND LOWER(estado) = 'pendiente'`,
+      [ids, lote]
+    );
+
+    console.log("Filas actualizadas:", updateResult.rowCount);
+
+    // 🔥 SELECT sin duplicados
+    const result = await client.query(
+      `SELECT DISTINCT ON (b.id)
+          b.id,
+          b.rut,
+          t.nombre,
+          b.fecha_generacion
+       FROM beneficios b
+       LEFT JOIN turnos t ON t.rut = b.rut
+       WHERE b.id = ANY($1::int[])
+       ORDER BY b.id, t.fecha DESC`,
+      [ids]
+    );
+
+    await client.query('COMMIT');
+
+    return result.rows;
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 async function obtenerPorLote(lote) {
   const result = await pool.query(

@@ -244,8 +244,6 @@ const exportarYPagar = async (req, res) => {
   try {
     const { ids } = req.body;
 
-    console.log (ids)
-
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
         error: 'Debe enviar IDs'
@@ -254,7 +252,6 @@ const exportarYPagar = async (req, res) => {
 
     // 🏷️ generar lote único
     const lote = `LOTE-${Date.now()}`;
-
     // 💰 pagar + obtener datos
     const data = await pagarYObtenerBeneficios(ids, lote);
 
@@ -267,9 +264,9 @@ const exportarYPagar = async (req, res) => {
     // 🧾 formato Excel
     const formato = data.map(d => ({
       RUT: d.rut,
+      NOMBRE: d.nombre,
       FECHA: d.fecha_generacion,
-      LOTE: lote,
-      MONTO: 10000 // 🔥 configurable después
+      LOTE: lote
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(formato);

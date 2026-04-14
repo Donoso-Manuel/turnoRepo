@@ -61,15 +61,6 @@ async function eliminarTurnoEnRango(fechaInicio, fechaFin) {
   
 }
 
-async function obtenerTurnosNocturnosPorRut(rut) {
-  const result = await pool.query(
-    `SELECT fecha FROM turnos 
-    WHERE rut = $1 AND es_noche = true
-    ORDER BY  fecha ASC `,
-    [rut]
-    );
-  return result.rows;
-}
 async function obtenerTurnoPorId(id) {
   const result = await pool.query(
     `SELECT * FROM turnos WHERE id = $1`,
@@ -143,15 +134,82 @@ async function insertarTurnoManualDB(t) {
   );
 }
 
-async function obtenerTurnosNocturnosPorRango(fechaInicio, fechaFin) {
-  const result =  await pool.query(
-    `SELECT rut, fecha
+async function obtenerTurnosNocturnosDB({ rut, desde, hasta }) {
+
+  let query = `
+    SELECT 
+      rut,
+      nombre,
+      fecha,
+      hora_ingreso,
+      hora_salida
     FROM turnos
     WHERE es_noche = true
-    AND fecha BETWEEN $1 AND $2
-    ORDER BY rut, fecha ASC`,
-    [fechaInicio, fechaFin]
-  );
+  `;
+
+  const values = [];
+  let i = 1;
+
+  if (rut) {
+    query += ` AND rut = $${i++}`;
+    values.push(rut);
+  }
+
+  if (desde) {
+    query += ` AND fecha >= $${i++}`;
+    values.push(desde);
+  }
+
+  if (hasta) {
+    query += ` AND fecha <= $${i++}`;
+    values.push(hasta);
+  }
+
+  query += ` ORDER BY fecha ASC`;
+
+  const result = await pool.query(query, values);
+
+  return result.rows;
+}
+
+async function obtenerTurnosDB({ rut, desde, hasta }) {
+
+  let query = `
+    SELECT 
+      id,
+      rut,
+      nombre,
+      fecha,
+      codigo_turno,
+      hora_ingreso,
+      hora_salida,
+      es_noche
+    FROM turnos
+    WHERE 1=1
+  `;
+
+  const values = [];
+  let i = 1;
+
+  if (rut) {
+    query += ` AND rut = $${i++}`;
+    values.push(rut);
+  }
+
+  if (desde) {
+    query += ` AND fecha >= $${i++}`;
+    values.push(desde);
+  }
+
+  if (hasta) {
+    query += ` AND fecha <= $${i++}`;
+    values.push(hasta);
+  }
+
+  query += ` ORDER BY fecha DESC`;
+
+  const result = await pool.query(query, values);
+
   return result.rows;
 }
 
@@ -159,11 +217,11 @@ module.exports = {
   existenTurnosEnRango,
   insertarTurnos,
   eliminarTurnoEnRango,
-  obtenerTurnosNocturnosPorRut,
   obtenerTurnoPorId,
   actualizarTurno,
   obtenerTurnosDesdeFecha,
   obtenerAcumuladoAntesDeFecha,
   insertarTurnoManualDB,
-  obtenerTurnosNocturnosPorRango
+  obtenerTurnosNocturnosDB,
+  obtenerTurnosDB
 };

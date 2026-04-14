@@ -1,5 +1,5 @@
 const XLSX = require('xlsx');
-const { procesarYGuardarTurnos, insertarTurnoManual } = require('../services/turnos.service');
+const { procesarYGuardarTurnos, insertarTurnoManual,procesarTurnoIndividual, listarTurnosNocturnos, listarTurnos } = require('../services/turnos.service');
 const {obtenerTurnoPorId, actualizarTurno} = require('../services/turnos.db.service');
 const {obtenerTurnoPorCodigo} = require('../services/catalogo.service')
 const {esTurnoNoche} = require('../services/reglas.service')
@@ -60,42 +60,44 @@ const corregirTurno = async (req, res) => {
     const { id } = req.params;
     const { horaIngreso, horaSalida } = req.body;
 
-    const turno = await obtenerTurnoPorId(id);
+    // 🔥 1. obtener turno ORIGINAL (ANTES de modificar)
+    const turnoAntes = await obtenerTurnoPorId(id);
 
-    if (!turno) {
-      return res.status(404).json({ error: "Turno no encontrado" });
-    }
+    const turnoCatalogo = await obtenerTurnoPorCodigo(turnoAntes.codigo_turno);
 
-    const turnoCatalogo = await obtenerTurnoPorCodigo(turno.codigo_turno);
-
-    const esNoche = esTurnoNoche(
+    // 🔥 2. calcular nuevo estado
+    const esNocheNuevo = esTurnoNoche(
       { horaIngreso, horaSalida },
       turnoCatalogo
-    );
+    ) === true;
 
-    const actualizado = await actualizarTurno(id, {
+    const esNocheAntes = turnoAntes.es_noche;
+
+
+    // 🔥 3. procesar impacto (ANTES de actualizar)
+    await procesarTurnoIndividual(
+      turnoAntes.rut,
+      turnoAntes.fecha,
+      esNocheNuevo,
+      esNocheAntes
+    );
+    console.log(esNocheNuevo)
+    // 🔥 4. ahora sí actualizar BD
+    await actualizarTurno(id, {
       horaIngreso,
       horaSalida,
-      esNoche
+      esNoche: esNocheNuevo
     });
 
-    const reproceso = await reprocesarDesde(
-      actualizado.rut,
-      actualizado.fecha
-    );
-
     res.json({
-      mensaje: "Turno actualizado y reprocesado",
-      turno: actualizado,
-      reproceso
+      mensaje: 'Turno corregido y procesado correctamente'
     });
 
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Error al corregir el turno" });
+    res.status(500).json({ error: 'Error al corregir turno' });
   }
 };
-
 const agregarTurnoManual = async (req, res) => {
   try {
     const {
@@ -133,8 +135,36 @@ const agregarTurnoManual = async (req, res) => {
   }
 };
 
+const obtenerTurnosNocturnos = async (req, res) => {
+  try {
+    const { rut, desde, hasta } = req.query;
+
+    const turnos = await listarTurnosNocturnos({ rut, desde, hasta });
+
+    res.json(turnos);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener turnos nocturnos' });
+  }
+};
+const obtenerTurnos = async (req, res) =>{
+  try{
+    const {rut, desde, hasta} =  req.query;
+
+    const turnos =  await listarTurnos({rut, desde, hasta});
+
+    res.json(turnos)
+  }catch(error){
+    console.error(error)
+    res.status(500).json({error: "Error al obtener los turnos"})
+  }
+}
+
 module.exports = {
   cargarExcel,
   corregirTurno,
-  agregarTurnoManual
+  agregarTurnoManual,
+  obtenerTurnosNocturnos,
+  obtenerTurnos
 };

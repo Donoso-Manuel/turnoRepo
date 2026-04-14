@@ -5,7 +5,6 @@ async function obtenerAcumulado(rut) {
     'SELECT noches_acumuladas FROM acumulado_noches WHERE rut = $1',
     [rut]
   );
-
   return result.rows[0]?.noches_acumuladas || 0;
 }
 

@@ -1,6 +1,6 @@
 const XLSX = require('xlsx');
-const { procesarYGuardarTurnos, insertarTurnoManual,procesarTurnoIndividual, listarTurnosNocturnos, listarTurnos } = require('../services/turnos.service');
-const {obtenerTurnoPorId, actualizarTurno} = require('../services/turnos.db.service');
+const { procesarYGuardarTurnos, insertarTurnoManual,procesarTurnoIndividual, listarTurnosNocturnos, listarTurnos, procesarTurnoManual} = require('../services/turnos.service');
+const {obtenerTurnoPorId, actualizarTurno, existeTurno} = require('../services/turnos.db.service');
 const {obtenerTurnoPorCodigo} = require('../services/catalogo.service')
 const {esTurnoNoche} = require('../services/reglas.service')
 const {procesarBeneficiosPorRango, reprocesarRangoCompleto} = require('../services/beneficios.service')
@@ -46,6 +46,7 @@ const cargarExcel = async (req, res) => {
       totalTurnos: resultado.turnos.length,
       rango: resultado.rango,
       existenDatos: resultado.existen,
+      errores: resultado.errores || [],
       muestra: resultado.turnos.slice(0, 1)
     });
 
@@ -104,9 +105,9 @@ const agregarTurnoManual = async (req, res) => {
       rut,
       nombre,
       fecha,
+      codigoTurno,
       horaIngreso,
-      horaSalida,
-      codigoTurno
+      horaSalida
     } = req.body;
 
     if (!rut || !fecha || !horaIngreso || !horaSalida) {
@@ -115,26 +116,54 @@ const agregarTurnoManual = async (req, res) => {
       });
     }
 
-    const resultado = await insertarTurnoManual({
+    // 🔥 1. validar duplicado
+    const existe = await existeTurno(rut, fecha);
+
+    if (existe) {
+      return res.status(400).json({
+        error: 'Ya existe un turno para este rut en esa fecha'
+      });
+    }
+
+    // 🔥 2. catálogo
+    const turnoCatalogo = await obtenerTurnoPorCodigo(codigoTurno);
+
+    // 🔥 3. calcular noche
+    const esNoche = esTurnoNoche(
+      { horaIngreso, horaSalida },
+      turnoCatalogo || { codigo: codigoTurno }
+    ) === true;
+
+    // 🔥 4. insertar turno
+    const nuevoTurno = await insertarTurno({
       rut,
       nombre,
       fecha,
-      horaIngreso,
-      horaSalida,
-      codigoTurno
+      codigo_turno: codigoTurno,
+      hora_ingreso: horaIngreso,
+      hora_salida: horaSalida,
+      es_noche: esNoche
     });
 
+    // 🔥 5. procesar SOLO manual
+    await procesarTurnoManual(
+      rut,
+      fecha,
+      esNoche
+    );
+
     res.json({
-      mensaje: 'Turno manual agregado',
-      turno: resultado
+      mensaje: 'Turno ingresado correctamente',
+      turno: nuevoTurno
     });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al insertar turno manual' });
+    res.status(500).json({
+      error: 'Error al ingresar turno manual'
+    });
   }
 };
-
 const obtenerTurnosNocturnos = async (req, res) => {
   try {
     const { rut, desde, hasta } = req.query;

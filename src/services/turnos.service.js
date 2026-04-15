@@ -136,6 +136,30 @@ async function listarTurnosNocturnos(filtros) {
 async function listarTurnos(filtros) {
   return await obtenerTurnosDB(filtros)
 }
+async function procesarTurnoManual(rut, fecha, esNoche) {
+
+  if (!esNoche) return;
+
+  // 🔥 1. obtener acumulado actual
+  const acumulado = await obtenerAcumulado(rut);
+  let contador = acumulado || 0;
+
+  contador += 1;
+
+  console.log('MANUAL +1 →', contador);
+
+  // 🔥 2. generar beneficio
+  if (contador >= 12) {
+    await insertarBeneficios(rut, [{
+      fecha_generacion: fecha
+    }]);
+
+    contador -= 12;
+  }
+
+  // 🔥 3. guardar acumulado
+  await guardarAcumulado(rut, contador, fecha);
+}
 
 module.exports = {
   procesarYGuardarTurnos,
@@ -143,5 +167,6 @@ module.exports = {
   reprocesarDesde,
   procesarTurnoIndividual,
   listarTurnosNocturnos,
-  listarTurnos
+  listarTurnos,
+  procesarTurnoManual
 };

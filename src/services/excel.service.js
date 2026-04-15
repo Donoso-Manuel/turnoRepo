@@ -3,6 +3,7 @@ const customParseFormat = require('dayjs/plugin/customParseFormat');
 
 const {obtenerTurnoPorCodigo} = require('./catalogo.service');
 const {esTurnoNoche} = require('./reglas.service');
+const {validarRut, normalizarRut} =  require('../utils/validaRut')
 
 dayjs.extend(customParseFormat);
 
@@ -51,9 +52,23 @@ function limpiarHora(hora){
 
 async function procesarExcel(data){
     const resultados = [];
+    const errores = []
 
     for(const row of data){
-            const rut = `${row.RUT}-${row.DV}`;
+            let rut = `${row.RUT}-${row.DV}`;
+
+            rut = normalizarRut(rut);
+
+            if (!validarRut(rut)) {
+              errores.push({
+              rut,
+              nombre: row.NOMBRE,
+              fecha: row.FECHA_JORNADA,
+              motivo: 'RUT inválido'
+              });
+              continue;
+            }
+
             const nombre = row.NOMBRE?.trim().toUpperCase();
             const fecha = parseFecha(row.FECHA_JORNADA);
 
@@ -63,7 +78,13 @@ async function procesarExcel(data){
             const horaSalida = limpiarHora(row.HORARIO_REAL_SALIDA);
 
             if(!rut || !fecha || !horaIngreso || !horaSalida){
-                continue;
+              errores.push({
+                rut,
+                nombre,
+                fecha,
+                motivo:"Datos Incompletos"
+              })  
+              continue;
             }
 
             const turnoCatalogo = await obtenerTurnoPorCodigo(codigoTurno);
@@ -83,7 +104,10 @@ async function procesarExcel(data){
                 esNoche,
             });
     }
-    return resultados;
+    return {
+      turnos: resultados,
+      errores
+    }
 }
 function obtenerRangoFechas(turnos) {
   const fechas = turnos.map(t => t.fecha); // ya viene YYYY-MM-DD

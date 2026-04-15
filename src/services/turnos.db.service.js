@@ -212,6 +212,14 @@ async function obtenerTurnosDB({ rut, desde, hasta }) {
 
   return result.rows;
 }
+async function existeTurno(rut, fecha) {
+  const result = await pool.query(
+    `SELECT 1 FROM turnos WHERE rut = $1 AND fecha = $2 LIMIT 1`,
+    [rut, fecha]
+  );
+
+  return result.rowCount > 0;
+}
 
 module.exports = {
   existenTurnosEnRango,
@@ -223,5 +231,6 @@ module.exports = {
   obtenerAcumuladoAntesDeFecha,
   insertarTurnoManualDB,
   obtenerTurnosNocturnosDB,
-  obtenerTurnosDB
+  obtenerTurnosDB,
+  existeTurno
 };

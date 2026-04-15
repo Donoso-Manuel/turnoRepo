@@ -109,12 +109,46 @@ async function pagarYObtenerBeneficios(ids, lote) {
   }
 }
 async function obtenerPorLote(lote) {
-  const result = await pool.query(
-    `SELECT * FROM beneficios WHERE lote_pago = $1`,
+const result = await pool.query(
+    `SELECT 
+        b.id,
+        b.rut,
+        (
+        SELECT t.nombre
+        FROM turnos t
+        WHERE t.rut = b.rut
+        LIMIT 1
+) as nombre,
+        b.fecha_generacion,
+        b.fecha_pago
+     FROM beneficios b
+     WHERE b.lote_pago = $1
+     ORDER BY nombre, b.fecha_generacion`,
     [lote]
   );
 
   return result.rows;
+}
+async function obtenerLotes(desde, hasta) {
+  let query= `
+    SELECT
+    lote_pago,
+    COUNT(*) as cantidad,
+    MIN(fecha_pago) as fecha_pago
+    FROM beneficios
+    WHERE lote_pago is NOT NULL`;
+
+    const params = []
+
+    if(desde && hasta){
+      query += ` AND fecha_pago BETWEEN $1 AND $2 `;
+      params.push(desde, hasta)
+    }
+
+    query += ` GROUP BY lote_pago
+              ORDER BY fecha_pago DESC`;
+    const result =  await pool.query(query,params)
+    return result.rows;
 }
 async function eliminarBeneficiosDesde(rut, fecha) {
   await pool.query(
@@ -178,7 +212,6 @@ async function obtenerBeneficios({ rut, estado, desde, hasta, limit = 10, page =
     total: parseInt(totalResult.rows[0].count)
   };
 }
-
 module.exports = {
     insertarBeneficios,
     eliminarBeneficiosPorRut,
@@ -188,5 +221,6 @@ module.exports = {
     pagarYObtenerBeneficios,
     obtenerPorLote,
     eliminarBeneficiosDesde,
-    obtenerBeneficios
+    obtenerBeneficios,
+    obtenerLotes,
 }

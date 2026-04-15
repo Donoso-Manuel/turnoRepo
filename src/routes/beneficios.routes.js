@@ -3,7 +3,7 @@ const router = express.Router();
 
 const {probarBeneficios, listarBeneficios, usarBeneficio, pagarBeneficio, 
     reprocesarDesde, exportarPagosHistorico, exportarSeleccionados,
-     exportarYPagar, obtenerLote, exportarPorLote} = require('../controllers/beneficios.controller');
+     exportarYPagar, listarLotes, exportarLote, obtenerDetalleLote} = require('../controllers/beneficios.controller');
 
 
 // Pruebas y Calculos
@@ -27,8 +27,9 @@ router.get('/reporte-pagos', exportarPagosHistorico);
 router.get('/exportar-seleccionados', exportarSeleccionados)
 
 //lotes
-router.get('/lote/:lote', obtenerLote)
-router.get('/lote/:lote/exportar', exportarPorLote);
+router.get('/lotes', listarLotes)
+router.get('/lotes/:lote', obtenerDetalleLote);
+router.get('/lotes/:lote/exportar',exportarLote);
 
 
 module.exports = router;

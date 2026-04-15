@@ -55,6 +55,7 @@ async function procesarExcel(data){
     const errores = []
 
     for(const row of data){
+      try{
             let rut = `${row.RUT}-${row.DV}`;
 
             rut = normalizarRut(rut);
@@ -64,6 +65,9 @@ async function procesarExcel(data){
               rut,
               nombre: row.NOMBRE,
               fecha: row.FECHA_JORNADA,
+              codigoTurno: row.CODIGO_TURNO,
+              horaIngreso: row.HORARIO_REAL_ENTRADA,
+              horaSalida: row.HORARIO_REAL_SALIDA,
               motivo: 'RUT inválido'
               });
               continue;
@@ -82,6 +86,9 @@ async function procesarExcel(data){
                 rut,
                 nombre,
                 fecha,
+                codigoTurno,
+                horaIngreso,
+                horaSalida,
                 motivo:"Datos Incompletos"
               })  
               continue;
@@ -103,6 +110,19 @@ async function procesarExcel(data){
                 horaSalida,
                 esNoche,
             });
+          }catch(error){
+            errores.push({
+              rut,
+              nombre: row.NOMBRE,
+              fecha: row.FECHA_JORNADA,
+              codigoTurno: row.CODIGO_TURNO,
+              horaIngreso: row.HORARIO_REAL_ENTRADA,
+              horaSalida: row.HORARIO_REAL_SALIDA,
+              motivo: 'Error procesando fila', error
+            });
+            console.error('Error procesando fila', error)
+            continue
+          }
     }
     return {
       turnos: resultados,

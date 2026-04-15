@@ -1,7 +1,8 @@
 const XLSX = require('xlsx');
 const { obtenerTurnosNocturnosPorRut } = require('../services/turnos.db.service');
 const { reprocesarDesdeFecha } = require('../services/beneficios.service');
-const { insertarBeneficios, eliminarBeneficiosPorRut, actualizarEstadoBeneficio, obtenerBeneficioPorId, obtenerPagosPorRango, pagarBeneficiosMasivo } = require('../services/beneficios.db.service');
+const { insertarBeneficios, eliminarBeneficiosPorRut, actualizarEstadoBeneficio, 
+  obtenerBeneficioPorId, obtenerLotes} = require('../services/beneficios.db.service');
 const {obtenerAcumulado, guardarAcumulado, resetearAcumulado} = require('../services/acumulados.db.service')
 const {obtenerBeneficiosPorIds, pagarYObtenerBeneficios, obtenerPorLote, obtenerBeneficios} = require('../services/beneficios.db.service')
 
@@ -289,17 +290,29 @@ const exportarYPagar = async (req, res) => {
     res.status(500).json({ error: 'Error en proceso de pago' });
   }
 };
-const obtenerLote = async (req, res) => {
-  const { lote } = req.params;
-
-  const data = await obtenerPorLote(lote);
-
-  res.json({
-    lote,
-    total: data.length,
-    beneficios: data
-  });
+const obtenerDetalleLote = async (req, res) => {
+  try{
+      const { lote } = req.params;
+      const data = await obtenerPorLote(lote);
+      
+      res.json(data)
+  }catch(error){
+    console.error(error)
+    res.status(500).json({error: "Error al obtener el detalle del lote"})
+  }
 };
+const listarLotes = async(req, res)=>{
+  try{
+    const {desde, hasta} = req.query
+
+    const lotes = await obtenerLotes(desde,hasta);
+
+    res.json(lotes)
+  }catch(error){
+    console.error(error)
+    res.status(500).json({error: "Error al obtener los lotes"})
+  }
+}
 const exportarPorLote = async (req, res) => {
   try {
     const { lote } = req.params;
@@ -346,6 +359,45 @@ const exportarPorLote = async (req, res) => {
     res.status(500).json({ error: 'Error al exportar lote' });
   }
 };
+const exportarLote = async (req, res) => {
+  try {
+    const { lote } = req.params;
+
+    const data = await obtenerPorLote(lote);
+
+    if (data.length === 0) {
+      return res.status(400).json({
+        error: 'El lote no tiene datos'
+      });
+    }
+
+    // 🔥 FORMATO EXCEL
+    const formato = data.map(d => ({
+      RUT: d.rut,
+      NOMBRE: d.nombre,
+      FECHA: d.fecha_generacion,
+      LOTE: lote
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(formato);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Lote');
+
+    const buffer = XLSX.write(workbook, {
+      type: 'buffer',
+      bookType: 'xlsx'
+    });
+
+    res.setHeader('Content-Disposition',` attachment; filename=lote_${lote}.xlsx`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    res.send(buffer);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al exportar lote' });
+  }
+};
 
 module.exports = {
     probarBeneficios,
@@ -356,6 +408,8 @@ module.exports = {
     exportarPagosHistorico,
     exportarSeleccionados,
     exportarYPagar,
-    obtenerLote,
-    exportarPorLote
+    obtenerDetalleLote,
+    exportarPorLote,
+    listarLotes,
+    exportarLote
 }

@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 const {probarBeneficios, listarBeneficios, usarBeneficio, pagarBeneficio, 
-    reprocesarDesde, exportarPagosHistorico, exportarSeleccionados,
-     exportarYPagar, listarLotes, exportarLote, obtenerDetalleLote} = require('../controllers/beneficios.controller');
+    reprocesarDesde, exportarBeneficios, exportarSeleccionados,
+     exportarYPagar, listarLotes, exportarLote, obtenerDetalleLote,
+     getListaAcumulados,
+     exportarAcumulados} = require('../controllers/beneficios.controller');
 
 
 // Pruebas y Calculos
@@ -21,9 +23,13 @@ router.put('/:id/usar', usarBeneficio)
 
 //Pago masivo
 router.post('/exportar-pagar', exportarYPagar)
+//Acumulados
+
+router.get('/acumulados',getListaAcumulados)
+router.get('/acumulados/exportar',exportarAcumulados)
 
 //reportes
-router.get('/reporte-pagos', exportarPagosHistorico);
+router.get('/exportar-beneficios', exportarBeneficios)
 router.get('/exportar-seleccionados', exportarSeleccionados)
 
 //lotes

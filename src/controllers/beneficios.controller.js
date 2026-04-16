@@ -3,7 +3,7 @@ const { obtenerTurnosNocturnosPorRut } = require('../services/turnos.db.service'
 const { reprocesarDesdeFecha } = require('../services/beneficios.service');
 const { insertarBeneficios, eliminarBeneficiosPorRut, actualizarEstadoBeneficio, 
   obtenerBeneficioPorId, obtenerLotes} = require('../services/beneficios.db.service');
-const {obtenerAcumulado, guardarAcumulado, resetearAcumulado} = require('../services/acumulados.db.service')
+const {obtenerAcumulado, guardarAcumulado, resetearAcumulado, listarAcumulados} = require('../services/acumulados.db.service')
 const {obtenerBeneficiosPorIds, pagarYObtenerBeneficios, obtenerPorLote, obtenerBeneficios} = require('../services/beneficios.db.service')
 
 const probarBeneficios = async (req, res) => {
@@ -388,7 +388,7 @@ const exportarLote = async (req, res) => {
       bookType: 'xlsx'
     });
 
-    res.setHeader('Content-Disposition',` attachment; filename=lote_${lote}.xlsx`);
+    res.setHeader('Content-Disposition',`attachment; filename=lote_${lote}.xlsx`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
     res.send(buffer);
@@ -398,7 +398,99 @@ const exportarLote = async (req, res) => {
     res.status(500).json({ error: 'Error al exportar lote' });
   }
 };
+const exportarBeneficios = async(req, res)=>{
+  try{
+    const {desde, hasta, estado, rut, exportar} = req.query;
 
+    const data = await obtenerBeneficios({
+      desde,
+      hasta,
+      estado,
+      rut,
+      exportar
+    })
+    if(!data || data.length === 0){
+      return res.status(400).json({error: "no hay datos para exportar"})
+    }
+    const formato = data.data.map(d =>({
+      RUT: d.rut,
+      NOMBRE: d.nombre,
+      FECHA_GENERACION: d.fecha_generacion,
+      ESTADO: d.estado,
+      FECHA_PAGO: d.fecha_pago || '',
+      LOTE: d.lote_pago || ''
+    }))
+
+    const worksheet = XLSX.utils.json_to_sheet(formato);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook,worksheet,'Beneficios')
+
+    const buffer = XLSX.write(workbook, {
+      type: 'buffer',
+      bookType: 'xlsx'
+    });
+
+    res.setHeader(
+      'Content-Disposition','Attachment; filename=beneficios.xlsx'
+    );
+    res.setHeader(
+      'Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.send(buffer)
+  }catch(error){
+    console.error(error)
+    res.status(500).json({errror: "Error al exportar Beneficios"})
+  }
+}
+const getListaAcumulados = async(req, res)=>{
+  try{
+    const {rut} = req.query;
+
+    const data =  await listarAcumulados({rut})
+
+    res.json(data)
+  }catch(error){
+    console.error(error)
+    res.status(500).json({error:"Error al obtener los acumulados"})
+  }
+}
+const exportarAcumulados = async(req, res)=>{
+  try{
+    const {rut} = req.query;
+
+    const data =  await listarAcumulados({rut});
+
+    if(!data.length){
+      return res.status(400).json({error: "no hay datos para exportar"})
+    }
+    const formato =  data.map(d => ({
+      RUT: d.rut,
+      NOMBRE: d.nombre,
+      NOCHES_ACUMULADAS: d.noches_acumuladas,
+      ULTIMA_FECHA: d.ultima_fecha
+    }))
+
+    const worksheet =  XLSX.utils.json_to_sheet(formato)
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Acumulados')
+
+    const buffer = XLSX.write(workbook,{
+      type: 'buffer',
+      bookType: 'xlsx'
+    });
+
+    res.setHeader(
+      'Content-Disposition','attachment; filename=acumulados.xlsx'
+    );
+    res.setHeader(
+      'content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.send(buffer);
+  }catch(error){
+    console.error(error)
+    res.status(500).json({error:"Error al exportar acumulados"})
+  }
+}
 module.exports = {
     probarBeneficios,
     listarBeneficios,
@@ -411,5 +503,8 @@ module.exports = {
     obtenerDetalleLote,
     exportarPorLote,
     listarLotes,
-    exportarLote
+    exportarLote,
+    exportarBeneficios,
+    getListaAcumulados,
+    exportarAcumulados
 }

@@ -25,9 +25,39 @@ async function resetearAcumulado(rut) {
     [rut]
   );
 }
+async function listarAcumulados({rut}) {
+  let query = `
+    SELECT
+    a.rut,
+    (
+    SELECT t.nombre
+    FROM turnos t
+    WHERE t.rut = a.rut
+    LIMIT 1
+)as nombre,
+    a.noches_acumuladas,
+    a.ultima_fecha
+    FROM acumulado_noches a
+    WHERE 1=1 `;
+
+  const values = [];
+  let i = 1;
+
+  if(rut){
+    query += ` AND a.rut = $${i++}`;
+    values.push(rut)
+  }
+
+  query +=` ORDER BY a.noches_acumuladas DESC`
+
+  const result =  await pool.query(query, values)
+
+  return result.rows
+}
 
 module.exports = {
   obtenerAcumulado,
   guardarAcumulado,
-  resetearAcumulado
+  resetearAcumulado,
+  listarAcumulados
 };

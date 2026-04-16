@@ -159,9 +159,10 @@ async function eliminarBeneficiosDesde(rut, fecha) {
     [rut, fecha]
   );
 }
-async function obtenerBeneficios({ rut, estado, desde, hasta, limit = 10, page = 1 }) {
+async function obtenerBeneficios({ rut, estado, desde, hasta, limit = 10, page = 1, exportar }) {
 
   const offset = (page - 1) * limit;
+  const exportando = exportar === true || exportar === 'true'
 
   let query = `
     SELECT DISTINCT ON (b.id)
@@ -196,11 +197,14 @@ async function obtenerBeneficios({ rut, estado, desde, hasta, limit = 10, page =
   }
 
   query += ` ORDER BY b.id DESC`;
-  query += ` LIMIT $${i++} OFFSET $${i++}`;
 
-  values.push(limit, offset);
+  if(!exportar){
+    query += ` LIMIT $${i++} OFFSET $${i++}`;
+    values.push(limit, offset);
+  }
 
   const result = await pool.query(query, values);
+
 
   // 🔥 total registros (para frontend)
   const totalResult = await pool.query(

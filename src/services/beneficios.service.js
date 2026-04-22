@@ -13,7 +13,7 @@ async function procesarBeneficiosPorRango(fechaInicio, fechaFin) {
   const agrupados = {};
 
   for (const t of turnos) {
-    if (!agrupados[t.rut]) {
+    if (!agrupados[t.rut])  {
       agrupados[t.rut] = [];
     }
     agrupados[t.rut].push(t);
